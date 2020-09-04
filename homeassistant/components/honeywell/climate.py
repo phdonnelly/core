@@ -38,14 +38,18 @@ from homeassistant.const import (
     CONF_USERNAME,
     TEMP_CELSIUS,
     TEMP_FAHRENHEIT,
+    UNIT_PERCENTAGE,
+)
+from homeassistant.components.sensor import (
+    DEVICE_CLASS_HUMIDITY,
+    DEVICE_CLASS_TEMPERATURE,
+    DOMAIN as SENSOR_DOMAIN,
 )
 import homeassistant.helpers.config_validation as cv
 
 _LOGGER = logging.getLogger(__name__)
 
 ATTR_FAN_ACTION = "fan_action"
-ATTR_OUTDOOR_TEMP = "outdoor_temperature"
-ATTR_OUTDOOR_HUMIDITY = "outdoor_humdity"
 
 CONF_COOL_AWAY_TEMPERATURE = "away_cool_temperature"
 CONF_HEAT_AWAY_TEMPERATURE = "away_heat_temperature"
@@ -129,26 +133,82 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     cool_away_temp = config.get(CONF_COOL_AWAY_TEMPERATURE)
     heat_away_temp = config.get(CONF_HEAT_AWAY_TEMPERATURE)
 
-    add_entities(
-        [
-            HoneywellUSThermostat(
-                client,
-                device,
-                cool_away_temp,
-                heat_away_temp,
-                username,
-                password,
-            )
-            for location in client.locations_by_id.values()
-            for device in location.devices_by_id.values()
-            if (
-                (not loc_id or location.locationid == loc_id)
-                and (not dev_id or device.deviceid == dev_id)
-            )
-        ]
-    )
+    entities = []
+    for location in client.locations_by_id.values():
+        for device in location.devices_by_id.values():
+            if ((not loc_id or location.locationid == loc_id) and (not dev_id or device.deviceid == dev_id)):
+                newstat = HoneywellUSThermostat(
+                    client,
+                    device,
+                    cool_away_temp,
+                    heat_away_temp,
+                    username,
+                    password,
+                )
+                entities.append(newstat)
+                if newstat._data['uiData']['OutdoorTemperatureAvailable'] == True:
+                    entities.append(HoneywellUSThermostatOutsideTemperature(newstat)
+                if newstat._data['uiData']['OutdoorHumidityAvailable'] == True:
+                    entities.append(HoneywellUSThermostatOutsideHumidity(newstat)
+        
+    add_entities(entities)
 
+class HoneywellUSThermostatOutsideTemperature(SensorEntity):
+    """Representation of a Honeywell US Thermostat External Temperature Sensor."""
 
+    def __init__(
+        self, parentThermostat
+    ):
+        self._parentThermostat = parentThermostat
+        
+    @property
+    def device_class(self):
+        """Return the device class of the sensor."""
+        return DEVICE_CLASS_TEMPERATURE
+
+    @property
+    def name(self) -> Optional[str]:
+        """Return the name of the sensor; use base thermostat name, if any."""
+        return self._parentThermostat._device.name + " Outside Temperature"
+    
+    @property
+    def state(self) -> str:
+        """Return the outdoor temperature."""
+        return self._parentThermostat._device.outdoor_temperature
+
+    @property
+    def temperature_unit(self) -> str:
+        """Return the unit of measurement."""
+        return TEMP_CELSIUS if self._device.temperature_unit == "C" else TEMP_FAHRENHEIT
+    
+class HoneywellUSThermostatOutsideHumidity(SensorEntity):
+    """Representation of a Honeywell US Thermostat External Humidity Sensor."""
+
+    def __init__(
+        self, parentThermostat
+    ):
+        self._parentThermostat = parentThermostat
+        
+    @property
+    def device_class(self):
+        """Return the device class of the sensor."""
+        return DEVICE_CLASS_HUMIDITY
+
+    @property
+    def name(self) -> Optional[str]:
+        """Return the name of the sensor; use base thermostat name, if any."""
+        return self._parentThermostat._device.name + " Outside Temperature"
+    
+    @property
+    def state(self) -> str:
+        """Return the outdoor humidity."""
+        return self._parentThermostat._device.outdoor_humidity
+
+    @property
+    def temperature_unit(self) -> str:
+        """Return the unit of measurement."""
+        return UNIT_PERCENTAGE
+    
 class HoneywellUSThermostat(ClimateEntity):
     """Representation of a Honeywell US Thermostat."""
 
