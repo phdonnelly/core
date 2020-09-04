@@ -147,9 +147,9 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
                 )
                 entities.append(newstat)
                 if newstat._data['uiData']['OutdoorTemperatureAvailable'] == True:
-                    entities.append(HoneywellUSThermostatOutsideTemperature(newstat)
+                    entities.append(HoneywellUSThermostatOutsideTemperature(newstat))
                 if newstat._data['uiData']['OutdoorHumidityAvailable'] == True:
-                    entities.append(HoneywellUSThermostatOutsideHumidity(newstat)
+                    entities.append(HoneywellUSThermostatOutsideHumidity(newstat))
         
     add_entities(entities)
 
